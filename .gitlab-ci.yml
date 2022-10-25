@@ -1,0 +1,34 @@
+variables:
+  DOCKER_REGISTRY: 126885376846.dkr.ecr.us-east-1.amazonaws.com
+  APP_NAME: helloworld-golang-multi-stage
+  TAG: "$CI_COMMIT_SHORT_SHA-$CI_PIPELINE_ID"
+
+stages:
+  - build
+  - build-docker-image
+  - push-image-to-aws-ecr
+
+build-golang-app:
+  stage: build
+  script:
+    go build
+  artifacts:
+    paths:
+      - /home/gitlab-runner/
+
+build-docker-image:
+  stage: build-docker-image
+  script:
+    - docker info
+    - docker build -t $DOCKER_REGISTRY/$APP_NAME:"$TAG" .
+
+Push_Image_to_ECR:
+  stage: push-image-to-aws-ecr
+  image: 
+    name: $DOCKER_REGISTRY/$APP_NAME:"$TAG"
+  services:
+    - docker:dind
+  script:
+    - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $DOCKER_REGISTRY
+    - docker tag $DOCKER_REGISTRY/$APP_NAME:"$TAG" $DOCKER_REGISTRY/$APP_NAME:"$TAG"
+    - docker push $DOCKER_REGISTRY/$APP_NAME:"$TAG"
